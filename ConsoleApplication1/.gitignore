@@ -1,0 +1,18 @@
+# Go build artifacts
+/bin/
+/pkg/
+*.exe
+*.out
+
+# IDE/editor files
+.vscode/
+*.swp
+*.log
+*.obj
+*.tlog
+*.idb
+*.pdb
+
+# Dependency directories
+vendor/
+.vs/

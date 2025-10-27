@@ -1,0 +1,46 @@
+What You Should Implement
+Master Password + Key Derivation
+
+Use scrypt or argon2 to derive a secure encryption key from the master password.
+
+Store only the hash of the master password (never the password itself).
+
+AES or ChaCha20 Encryption
+
+Encrypt each password entry using AES-GCM or ChaCha20-Poly1305.
+
+Use unique nonces/IVs for each entry to prevent pattern leaks.
+
+Secure Storage
+
+Store encrypted entries in a local file (e.g., JSON or BoltDB).
+
+Optionally encrypt the entire file with a master key.
+
+Clipboard Auto-Clear
+
+Copy passwords to clipboard and auto-clear after a few seconds to reduce exposure.
+
+Password Strength Meter
+
+Evaluate password strength using entropy or pattern analysis.
+
+Warn users about weak or reused passwords.
+
+Audit Features
+
+Track password age and flag old entries.
+
+Optional breach check via public APIs (like HaveIBeenPwned).
+
+Auto-Lock & Timeout
+
+Lock the app after inactivity.
+
+Require re-authentication to access stored data.
+
+Import/Export with Encryption
+
+Allow encrypted backups and secure imports.
+
+Use password-protected export files.
