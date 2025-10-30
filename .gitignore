@@ -16,3 +16,10 @@
 # Dependency directories
 vendor/
 .vs/
+
+
+*.db
+*.sum
+
+
+PasswordManager/config/config.go

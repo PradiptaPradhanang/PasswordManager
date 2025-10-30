@@ -1,22 +1,33 @@
 package database
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"passmana/config"
-
-	"golang.org/x/crypto/bcrypt"
+	"passmana/crypto"
+	//"golang.org/x/crypto/bcrypt"
 )
 
-func Insert(username string, sitename string, password string) {
+func Insert(username string, platform string, password string, masterPassword string) {
 	//converts string into byte array because bcrypt only accept byte array
-	bytePassword := []byte(password)
-	hashValue, err := bcrypt.GenerateFromPassword(bytePassword, bcrypt.DefaultCost)
+	cfg := crypto.MasterKeyConfig{
+		Mpassword: masterPassword,
+		Salt:      nil,
+	}
+	mKey, salt, err := crypto.DeriveMasterKey(cfg)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	data := username + "," + sitename + ","
+	bytePassword := []byte(password)
+	enPassword, nonce, err := crypto.Encryption(bytePassword, mKey)
+	//hashValue, err := bcrypt.GenerateFromPassword(bytePassword, bcrypt.DefaultCost)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	data := username + "," + platform + ","
 	//open the file in WRITE mode, if file is not present then it will create
 	input, err := os.OpenFile(config.DBName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
@@ -31,12 +42,21 @@ func Insert(username string, sitename string, password string) {
 		fmt.Println(err)
 		return
 	}
-	//adding password
-	hash, err := input.WriteString(string(hashValue)) //string(hash) function save the hash int the string format
+	tmpsalt := base64.StdEncoding.EncodeToString(salt)
+	tmpnonce := base64.StdEncoding.EncodeToString(nonce)
+	total := tmpsalt + "," + tmpnonce + ","
+	caldata, err := input.WriteString(total)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	//adding password
+	hash, err := input.WriteString(base64.StdEncoding.EncodeToString(enPassword)) //string(hash) function save the hash int the string format
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 	//adding new line
 	l3, err := input.WriteString("\n")
 	if err != nil {
@@ -44,7 +64,7 @@ func Insert(username string, sitename string, password string) {
 		return
 	}
 	//check the data was stored or not
-	if metadata != 0 && hash != 0 && l3 != 0 {
+	if metadata != 0 && hash != 0 && l3 != 0 && caldata != 0 {
 		fmt.Print("Credentials Saved")
 	}
 

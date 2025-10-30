@@ -1,15 +1,14 @@
-What You Should Implement
-Master Password + Key Derivation
 
-Use scrypt or argon2 to derive a secure encryption key from the master password.
 
-Store only the hash of the master password (never the password itself).
+Use scrypt or argon2 to derive a secure encryption key from the master password.-done
 
-AES or ChaCha20 Encryption
+Store only the hash of the master password (never the password itself).-done
 
-Encrypt each password entry using AES-GCM or ChaCha20-Poly1305.
+AES or ChaCha20 Encryption-done
 
-Use unique nonces/IVs for each entry to prevent pattern leaks.
+Encrypt each password entry using AES-GCM or ChaCha20-Poly1305.-done
+
+Use unique nonces/IVs for each entry to prevent pattern leaks.-done
 
 Secure Storage
 
@@ -44,3 +43,22 @@ Import/Export with Encryption
 Allow encrypted backups and secure imports.
 
 Use password-protected export files.
+
+
+Vault creation:
+
+Generate a random 32-byte challenge
+
+Derive key from master password + salt (Argon2id)
+
+Encrypt the challenge → store ciphertext + salt
+
+Login:
+
+User enters password
+
+Derive key again
+
+Decrypt the blob → compare to stored challenge
+
+If match → password is correct
