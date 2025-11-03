@@ -45,20 +45,54 @@ Allow encrypted backups and secure imports.
 Use password-protected export files.
 
 
-Vault creation:
+
+
+
+Vault Creation (One-Time Setup)
 
 Generate a random 32-byte challenge
+→ Truly random (using crypto/rand), not derived from password.
+Generate a random 16-byte salt
+Derive a 32-byte encryption key from the master password:
+textkey = Argon2id(master_password, salt, memory=64MiB, iterations=3, parallelism=4, keyLen=32)
 
-Derive key from master password + salt (Argon2id)
+Encrypt the random challenge using AES-256-GCM:
 
-Encrypt the challenge → store ciphertext + salt
+Generate a random 12-byte nonce
+Encrypt: ciphertext || tag = AES-GCM(key, nonce, challenge)
+Store: salt || nonce || ciphertext || tag
 
-Login:
 
-User enters password
+Encrypt the actual vault data (your passwords in JSON):
 
-Derive key again
+Generate a new random 12-byte nonce
+Encrypt: vault_ciphertext || vault_tag = AES-GCM(key, new_nonce, vault_JSON)
+Append to file:
+textsalt || nonce1 || ct1 || tag1 || nonce2 || ct2 || tag2
 
-Decrypt the blob → compare to stored challenge
+1. User enters: username + password
+2. DB: SELECT salt FROM users WHERE username = ?
+3. Go: key = Argon2id(password, salt)
+4. DB: SELECT encrypted_data, nonce FROM vaults WHERE user_id = ?
+5. Go: plaintext = AES-GCM-Open(key, nonce, encrypted_data)
+   → if fails → wrong password
+   → if success → return vault JSON
 
-If match → password is correct
+
+
+Login / Unlock
+
+Read file → extract:
+salt, nonce1, ct1 || tag1, nonce2, ct2 || tag2
+Derive key again:
+textkey = Argon2id(input_password, salt, same_params)
+
+Try to decrypt the challenge:
+textAES-GCM-Decrypt(key, nonce1, ct1 || tag1)
+
+If fails → Wrong password → Exit
+If succeeds → Password is correct
+
+
+Decrypt the vault:
+textvault_JSON = AES-GCM-Decrypt(key, nonce2, ct2 || tag2)

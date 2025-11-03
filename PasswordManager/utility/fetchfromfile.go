@@ -1,4 +1,4 @@
-package database
+package utility
 
 import (
 	"encoding/base64"
@@ -69,7 +69,7 @@ func decryptBlock(entry []string, mpassword string) (p []byte, err error) {
 	return password, nil
 
 }
-func Fetch(username string, platform string, mpassword string) {
+func Fetchfromfile(username string, platform string, mpassword string) {
 
 	data, err := readCSV()
 	if err != nil {

@@ -1,4 +1,4 @@
-package passwordgenerator
+package utility
 
 import (
 	"crypto/rand"

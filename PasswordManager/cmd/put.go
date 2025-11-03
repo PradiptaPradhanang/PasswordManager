@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"passmana/config"
-	"passmana/database"
+	database "passmana/dBaseActions"
 
 	"github.com/spf13/cobra"
 )
