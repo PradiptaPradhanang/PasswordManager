@@ -20,6 +20,9 @@ vendor/
 
 *.db
 *.sum
-
+__debug_bin.exe*
 
 PasswordManager/config/config.go
+PasswordManager/__debug_bin.exe3824370766
+PasswordManager/rd.passmana
+PasswordManager/vault.salt

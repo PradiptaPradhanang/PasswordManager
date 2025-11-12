@@ -7,7 +7,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"passmana/database"
+	"passmana/dbControl"
 
 	"github.com/spf13/cobra" // ← 1 import
 	_ "modernc.org/sqlite"   // driver
@@ -34,7 +34,7 @@ to quickly create a Cobra application.`,
 		if err != nil {
 			return fmt.Errorf("failed to connect to DB: %w", err)
 		}
-		database.Set(dbConn) //set global db
+		dbControl.Set(dbConn) //set global db
 		// Auto-create table
 		_, err = dbConn.Exec(`
 			CREATE TABLE IF NOT EXISTS creds (

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 	"passmana/config"
-	"passmana/crypto"
+	"passmana/encrypto"
 )
 
 func readCSV() ([][]string, error) {
@@ -54,15 +54,15 @@ func decryptBlock(entry []string, mpassword string) (p []byte, err error) {
 
 		}
 	}
-	cfg := crypto.MasterKeyConfig{
+	cfg := encrypto.MasterKeyConfig{
 		Mpassword: mpassword,
 		Salt:      salt,
 	}
-	MKey, _, err := crypto.DeriveMasterKey(cfg)
+	MKey, _, err := encrypto.DeriveMasterKey(cfg)
 	if err != nil {
 		return nil, err
 	}
-	password, err := crypto.Decryption(MKey, nonce, hashPassword)
+	password, err := encrypto.Decryption(MKey, nonce, hashPassword)
 	if err != nil {
 		return nil, err
 	}

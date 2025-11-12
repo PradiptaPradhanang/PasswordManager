@@ -1,4 +1,4 @@
-package database
+package dbControl
 
 import (
 	"database/sql"

@@ -3,20 +3,20 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"passmana/crypto"
-	"passmana/database"
+	"passmana/dbControl"
+	"passmana/encrypto"
 )
 
 func decryptBlock(salt []byte, nonce []byte, ciphertext []byte, mpassword string) (p []byte, err error) {
-	cfg := crypto.MasterKeyConfig{
+	cfg := encrypto.MasterKeyConfig{
 		Mpassword: mpassword,
 		Salt:      salt,
 	}
-	MKey, _, err := crypto.DeriveMasterKey(cfg)
+	MKey, _, err := encrypto.DeriveMasterKey(cfg)
 	if err != nil {
 		return nil, err
 	}
-	password, err := crypto.Decryption(MKey, nonce, ciphertext)
+	password, err := encrypto.Decryption(MKey, nonce, ciphertext)
 	if err != nil {
 		return nil, err
 	}
@@ -25,7 +25,7 @@ func decryptBlock(salt []byte, nonce []byte, ciphertext []byte, mpassword string
 }
 func Fetch(username string, platform string, mpassword string) {
 
-	db := database.Get()
+	db := dbControl.Get()
 
 	row := db.QueryRow(`SELECT salt, nonce, cipherpass FROM creds WHERE platform = ? AND username = ?`, platform, username)
 

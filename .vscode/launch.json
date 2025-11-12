@@ -1,13 +1,14 @@
 {
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Launch Go Program",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "program": "passwordmanager",
-      "args": ["get", "--username", "tt", "--platform", "github"]
-    }
-  ]
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch current file",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "passwordmanager", // Use "${workspaceFolder}" for the entire project
+            "env": {},
+            "args": []
+        }
+    ]
 }
