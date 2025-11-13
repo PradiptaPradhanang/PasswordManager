@@ -8,7 +8,8 @@
             "mode": "debug",
             "program": "passwordmanager", // Use "${workspaceFolder}" for the entire project
             "env": {},
-            "args": []
+            "args": [],
+        
         }
     ]
 }

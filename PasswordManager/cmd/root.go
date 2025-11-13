@@ -15,7 +15,7 @@ import (
 
 var dbConn *sql.DB
 
-func DB() *sql.DB { return dbConn } // ← ADD THIS LINE
+func DB() *sql.DB { return dbConn }
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -30,33 +30,16 @@ to quickly create a Cobra application.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		var err error
 		//Ask master passwrod once per run
-		dbConn, err = sql.Open("sqlite", "vault.db")
-		if err != nil {
-			return fmt.Errorf("failed to connect to DB: %w", err)
+		if err := dbControl.OpenDatabase("vault.db"); err != nil {
+			fmt.Println(err) // open or create file
 		}
-		dbControl.Set(dbConn) //set global db
-		// Auto-create table
-		_, err = dbConn.Exec(`
-			CREATE TABLE IF NOT EXISTS creds (
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				username TEXT NOT NULL,
-				platform TEXT NOT NULL UNIQUE,
-				salt BLOB NOT NULL,
-				nonce BLOB NOT NULL,
-				
-				cipherpass BLOB NOT NULL 
-				
-			);
-			
-			CREATE INDEX IF NOT EXISTS idx_platform_username ON creds(platform, username);
-		`)
-
+		if err := dbControl.CreateDatabase(); err != nil {
+			fmt.Println(err) // ensure schema exists
+		}
 		return err
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
-		if dbConn != nil {
-			dbConn.Close()
-		}
+		dbControl.CloseDatabase()
 	},
 	// Uncomment the following line if your bare application
 	// has an action associated with it:

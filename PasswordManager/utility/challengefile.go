@@ -27,19 +27,19 @@ func CreateVault(master string) {
 		return
 	}
 	fmt.Println(key)
-	cipherPass, nonce, err := encrypto.Encryption(key, challenge)
+	cipherPass, nonceMaster, err := encrypto.Encryption(key, challenge)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	sealed := append(nonce, cipherPass...) // 12+48=60
+	sealed := append(nonceMaster, cipherPass...) // 12+48=60
 
 	// 5. Save proof
 	os.WriteFile(config.SaltFile, salt, 0644)
 	os.WriteFile(config.ChallengFile, sealed, 0600)
 	fmt.Println("Salt length:", len(salt))     // Should match Argon2 salt size
-	fmt.Println("Sealed length:", len(sealed)) // Should be nonce + ciphertext
-	fmt.Println("Nonce:", sealed[:12])
+	fmt.Println("Sealed length:", len(sealed)) // Should be nonceMaster + ciphertext
+	fmt.Println("nonceMaster:", sealed[:12])
 	fmt.Println("Ciphertext:", sealed[12:])
 }
 
@@ -56,8 +56,8 @@ func VerifyPass(master string) (check bool) {
 
 	}
 	fmt.Println("Salt length:", len(salt))     // Should match Argon2 salt size
-	fmt.Println("Sealed length:", len(sealed)) // Should be nonce + ciphertext
-	fmt.Println("Nonce:", sealed[:12])
+	fmt.Println("Sealed length:", len(sealed)) // Should be nonceMaster + ciphertext
+	fmt.Println("nonceMaster:", sealed[:12])
 	fmt.Println("Ciphertext:", sealed[12:])
 	cfg := encrypto.MasterKeyConfig{
 		Mpassword: master,
@@ -70,9 +70,9 @@ func VerifyPass(master string) (check bool) {
 		return false
 	}
 	fmt.Println(key)
-	nonce := sealed[:12]
+	nonceMaster := sealed[:12]
 	ciphertext := sealed[12:]
-	_, err = encrypto.Decryption(key, nonce, ciphertext)
+	_, err = encrypto.Decryption(key, nonceMaster, ciphertext)
 	if err != nil {
 		fmt.Println(err)
 		return false
