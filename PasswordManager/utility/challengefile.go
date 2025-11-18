@@ -37,10 +37,11 @@ func CreateVault(master string) {
 	// 5. Save proof
 	os.WriteFile(config.SaltFile, salt, 0644)
 	os.WriteFile(config.ChallengFile, sealed, 0600)
-	fmt.Println("Salt length:", len(salt))     // Should match Argon2 salt size
-	fmt.Println("Sealed length:", len(sealed)) // Should be nonceMaster + ciphertext
-	fmt.Println("nonceMaster:", sealed[:12])
-	fmt.Println("Ciphertext:", sealed[12:])
+	config.SetMasterKey(key)
+	// fmt.Println("Salt length:", len(salt))     // Should match Argon2 salt size
+	// fmt.Println("Sealed length:", len(sealed)) // Should be nonceMaster + ciphertext
+	// fmt.Println("nonceMaster:", sealed[:12])
+	// fmt.Println("Ciphertext:", sealed[12:])
 }
 
 func VerifyPass(master string) (check bool) {
