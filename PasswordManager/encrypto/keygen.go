@@ -72,7 +72,8 @@ func Decryption(mKey []byte, nonce []byte, pass []byte) (p []byte, err error) {
 		return nil, err
 	}
 	if len(nonce) != aesgcm.NonceSize() {
-		return nil, fmt.Errorf("invalid nonce size: expected %d, got %d", aesgcm.NonceSize(), len(nonce))
+		fmt.Printf("invalid nonce size: expected %d, got %d", aesgcm.NonceSize(), len(nonce))
+		return nil, nil
 	}
 	password, err := aesgcm.Open(nil, nonce, pass, nil)
 	if err != nil {

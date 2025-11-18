@@ -37,7 +37,7 @@ func CreateVault(master string) {
 	// 5. Save proof
 	os.WriteFile(config.SaltFile, salt, 0644)
 	os.WriteFile(config.ChallengFile, sealed, 0600)
-	config.SetMasterKey(key)
+
 	// fmt.Println("Salt length:", len(salt))     // Should match Argon2 salt size
 	// fmt.Println("Sealed length:", len(sealed)) // Should be nonceMaster + ciphertext
 	// fmt.Println("nonceMaster:", sealed[:12])
@@ -56,10 +56,10 @@ func VerifyPass(master string) (check bool) {
 		return false
 
 	}
-	fmt.Println("Salt length:", len(salt))     // Should match Argon2 salt size
-	fmt.Println("Sealed length:", len(sealed)) // Should be nonceMaster + ciphertext
-	fmt.Println("nonceMaster:", sealed[:12])
-	fmt.Println("Ciphertext:", sealed[12:])
+	// fmt.Println("Salt length:", len(salt))     // Should match Argon2 salt size
+	// fmt.Println("Sealed length:", len(sealed)) // Should be nonceMaster + ciphertext
+	// fmt.Println("nonceMaster:", sealed[:12])
+	// fmt.Println("Ciphertext:", sealed[12:])
 	cfg := encrypto.MasterKeyConfig{
 		Mpassword: master,
 		Salt:      salt,
@@ -78,7 +78,7 @@ func VerifyPass(master string) (check bool) {
 		fmt.Println(err)
 		return false
 	}
-
+	config.SetMasterKey(key)
 	return true
 
 }

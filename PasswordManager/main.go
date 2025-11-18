@@ -1,12 +1,17 @@
 package main
 
 import (
+	"os"
 	"passmana/appfrontend"
-	//"passmana/cmd
+	"passmana/cmd"
 )
 
 func main() {
-	//	cmd.Execute()
-	appfrontend.EntryPoint()
-
+	if len(os.Args) > 1 {
+		// If any arguments are passed, assume CLI mode
+		cmd.Execute()
+	} else {
+		// No arguments? Launch GUI
+		appfrontend.EntryPoint()
+	}
 }

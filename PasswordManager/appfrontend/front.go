@@ -5,7 +5,9 @@ import (
 	"os"
 	"passmana/config"
 	"passmana/dbControl"
+	"passmana/encrypto"
 	"passmana/utility"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -131,193 +133,145 @@ func unlock() {
 func passwordScreen() {
 	creds, err := dbControl.ListPassword()
 	if err != nil {
-		dialog.ShowInformation("Error loading", err.Error(), w)
+		dialog.ShowError(err, w)
 		return
 	}
 
-	rows := len(creds)
-	cols := 7 // Username, Platform, Password, Show, Copy, Delete, Edit
+	var rows []fyne.CanvasObject
 
-	maskedState := make(map[int]bool)
-	for i := 0; i < rows; i++ {
-		maskedState[i] = true
+	// Header row
+	header := container.NewGridWithColumns(7,
+		widget.NewLabelWithStyle("Username", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("Platform", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("Password", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabel("Show/Hide"),
+		widget.NewLabel("Copy"),
+		widget.NewLabel("Delete"),
+		widget.NewLabel("Edit"),
+	)
+	rows = append(rows, header)
+
+	for _, cred := range creds {
+		passwordLabel := widget.NewLabel("********")
+		showBtn := widget.NewButtonWithIcon("", theme.VisibilityIcon(), nil)
+		copyBtn := widget.NewButtonWithIcon("", theme.ContentCopyIcon(), nil)
+		deleteBtn := widget.NewButtonWithIcon("", theme.DeleteIcon(), nil)
+		editBtn := widget.NewButtonWithIcon("", theme.DocumentCreateIcon(), nil)
+
+		// Show/hide logic
+		showing := false
+		showBtn.OnTapped = func() {
+			if showing {
+				passwordLabel.SetText("********")
+				showBtn.SetIcon(theme.VisibilityIcon())
+			} else {
+				masterKey := config.GetMasterKey()
+				password, _ := encrypto.Decryption(masterKey, cred.Nonce, cred.Cipherpass)
+				passwordLabel.SetText(string(password))
+				showBtn.SetIcon(theme.VisibilityOffIcon())
+			}
+			showing = !showing
+		}
+
+		// Copy logic
+		copyBtn.OnTapped = func() {
+			a.Clipboard().SetContent(string(cred.Cipherpass))
+			dialog.ShowInformation("Copied", "Password copied to clipboard", w)
+		}
+
+		// Delete logic
+		deleteBtn.OnTapped = func() {
+			dialog.NewConfirm("Delete", "Are you sure?", func(ok bool) {
+				if ok {
+					dbControl.DeleteCred(cred.Platform, cred.Username)
+					passwordScreen()
+				}
+			}, w).Show()
+		}
+
+		// Edit logic
+		editBtn.OnTapped = func() {
+			passwordEntry := widget.NewPasswordEntry()
+			//modal design
+			formItems := []*widget.FormItem{
+				{Text: "Username", Widget: widget.NewLabel(cred.Username)},
+				{Text: "Platform", Widget: widget.NewLabel(cred.Platform)},
+				{Text: "New Password", Widget: passwordEntry},
+			}
+			formDialog := dialog.NewForm("Edit Password", "Save", "Cancel", formItems, func(ok bool) {
+				if ok {
+					password := passwordEntry.Text
+					if len(password) < 8 {
+						dialog.ShowError(fmt.Errorf("password is less than 8 characters,credentials not added"), w)
+						return
+					}
+					err := dbControl.UpdateCred(cred.Username, cred.Platform, password)
+					if err != nil {
+						dialog.ShowError(err, w)
+						return
+					}
+					dialog.ShowInformation("Success", "Credential added.", w)
+					passwordScreen()
+				}
+			}, w)
+
+			formDialog.Resize(fyne.NewSize(400, 300))
+			formDialog.Show()
+		}
+
+		row := container.NewGridWithColumns(7,
+			widget.NewLabel(cred.Username),
+			widget.NewLabel(cred.Platform),
+			passwordLabel,
+			showBtn,
+			copyBtn,
+			deleteBtn,
+			editBtn,
+		)
+		rows = append(rows, row)
 	}
 
-	var table *widget.Table
-	table = widget.NewTable(
-		func() (int, int) {
-			return rows + 1, cols
-		},
+	list := container.NewVScroll(container.NewVBox(rows...))
 
-		func() fyne.CanvasObject {
-			return container.NewStack(
-				widget.NewLabel(""),
-				widget.NewButtonWithIcon("", nil, nil),
-			)
-		},
-
-		func(id widget.TableCellID, obj fyne.CanvasObject) {
-			label := obj.(*fyne.Container).Objects[0].(*widget.Label)
-			button := obj.(*fyne.Container).Objects[1].(*widget.Button)
-
-			label.TextStyle = fyne.TextStyle{}
-			label.SetText("")
-			button.SetText("")
-			button.SetIcon(nil)
-			button.OnTapped = nil
-
-			if id.Row == 0 {
-				label.Show()
-				button.Hide()
-				label.TextStyle = fyne.TextStyle{Bold: true}
-				switch id.Col {
-				case 0:
-					label.SetText("Username")
-				case 1:
-					label.SetText("Platform")
-				case 2:
-					label.SetText("Password")
-				case 3:
-					label.SetText("Show")
-				case 4:
-					label.SetText("Copy")
-				case 5:
-					label.SetText("Delete")
-				case 6:
-					label.SetText("Edit")
-				}
-				return
-			}
-
-			cred := creds[id.Row-1]
-
-			switch id.Col {
-			case 0: // Username
-				label.Show()
-				button.Hide()
-				label.SetText(cred.Username)
-			case 1: // Platform
-				label.Show()
-				button.Hide()
-				label.SetText(cred.Platform)
-			case 2: // Password
-				label.Show()
-				button.Hide()
-				if maskedState[id.Row-1] {
-					label.SetText("********")
-				} else {
-					label.SetText(string(cred.Cipherpass))
-				}
-			case 3: // Show/Hide
-				label.Hide()
-				button.Show()
-				row := id.Row - 1
-				if maskedState[row] {
-					button.SetIcon(theme.VisibilityIcon())
-				} else {
-					button.SetIcon(theme.VisibilityOffIcon())
-				}
-				button.OnTapped = func() {
-					maskedState[row] = !maskedState[row]
-					table.Refresh()
-				}
-			case 4: // Copy
-				label.Hide()
-				button.Show()
-				button.SetIcon(theme.ContentCopyIcon())
-				button.OnTapped = func() {
-					a.Clipboard().SetContent(string(cred.Cipherpass))
-					dialog.ShowInformation("Copied", "Password copied to clipboard", w)
-				}
-			case 5: // Delete
-				label.Hide()
-				button.Show()
-				button.SetIcon(theme.DeleteIcon())
-				button.OnTapped = func() {
-					confirm := dialog.NewConfirm("Confirm Delete",
-						fmt.Sprintf("Delete credentials for %s on %s?", cred.Username, cred.Platform),
-						func(ok bool) {
-							if ok {
-								dbControl.DeleteCred(cred.Platform, cred.Username)
-								dialog.ShowInformation("Deleted", "Entry removed.", w)
-								passwordScreen()
-							}
-						}, w)
-					confirm.Show()
-				}
-			case 6: // Edit
-				label.Hide()
-				button.Show()
-				button.SetIcon(theme.DocumentCreateIcon())
-				button.OnTapped = func() {
-					platform := widget.NewLabel(cred.Platform)
-					username := widget.NewLabel(cred.Username)
-					passwordEntry := widget.NewPasswordEntry()
-					formItems := []*widget.FormItem{
-						{Text: "Username", Widget: username},
-						{Text: "Platform", Widget: platform},
-						{Text: "Password", Widget: passwordEntry},
-					}
-					dialog.NewForm("Edit Password", "Save", "Cancel", formItems, func(ok bool) {
-						// if ok {
-						//     err := dbControl.AddCred(
-						//         platformEntry.Text,
-						//         usernameEntry.Text,
-						//         []byte(passwordEntry.Text),
-						//     )
-						//     if err != nil {
-						//         dialog.ShowError(err, w)
-						//         return
-						//     }
-						//     dialog.ShowInformation("Success", "Credential added.", w)
-						//     passwordScreen()
-						// }
-					}, w).Show()
-				}
-			}
-		},
-	)
-
-	// Column widths
-	table.SetColumnWidth(0, 120) // Username
-	table.SetColumnWidth(1, 120) // Platform
-	table.SetColumnWidth(2, 100) // Password
-	table.SetColumnWidth(3, 50)  // Show
-	table.SetColumnWidth(4, 50)  // Copy
-	table.SetColumnWidth(5, 50)  // Delete
-	table.SetColumnWidth(6, 50)  // Edit
-
-	// Add button
 	addButton := widget.NewButton("➕ Add New Credential", func() {
 		platformEntry := widget.NewEntry()
 		usernameEntry := widget.NewEntry()
 		passwordEntry := widget.NewPasswordEntry()
-
-		//widget.NewPasswordEntry()
 
 		formItems := []*widget.FormItem{
 			{Text: "Platform", Widget: platformEntry},
 			{Text: "Username", Widget: usernameEntry},
 			{Text: "Password", Widget: passwordEntry},
 		}
+		formDialog := dialog.NewForm("Add New Credential", "Save", "Cancel", formItems, func(ok bool) {
+			if ok {
+				platform := strings.TrimSpace(platformEntry.Text)
+				username := strings.TrimSpace(usernameEntry.Text)
+				password := passwordEntry.Text
 
-		dialog.NewForm("Add New Credential", "Save", "Cancel", formItems, func(ok bool) {
-			// if ok {
-			//     err := dbControl.AddCred(
-			//         platformEntry.Text,
-			//         usernameEntry.Text,
-			//         []byte(passwordEntry.Text),
-			//     )
-			//     if err != nil {
-			//         dialog.ShowError(err, w)
-			//         return
-			//     }
-			//     dialog.ShowInformation("Success", "Credential added.", w)
-			//     passwordScreen()
-			// }
-		}, w).Show()
+				if platform == "" || username == "" {
+					dialog.ShowError(fmt.Errorf("please fill all fields correctly,credentials not added"), w)
+					return
+				}
+				if len(password) < 8 {
+					dialog.ShowError(fmt.Errorf("password is less than 8 characters,credentials not added"), w)
+					return
+				}
+
+				err := dbControl.AddCred(username, platform, []byte(password))
+				if err != nil {
+					dialog.ShowError(err, w)
+					return
+				}
+				dialog.ShowInformation("Success", "Credential added.", w)
+				passwordScreen()
+			}
+		}, w)
+
+		formDialog.Resize(fyne.NewSize(400, 300))
+		formDialog.Show()
 	})
 
-	content := container.NewBorder(nil, addButton, nil, nil, table)
+	content := container.NewBorder(nil, addButton, nil, nil, list)
 	w.SetContent(content)
 }
