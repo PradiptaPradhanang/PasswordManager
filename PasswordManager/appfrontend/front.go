@@ -3,6 +3,7 @@ package appfrontend
 import (
 	"fmt"
 	"os"
+	"passmana/backUpDB"
 	"passmana/config"
 	"passmana/dbControl"
 	"passmana/encrypto"
@@ -23,6 +24,9 @@ import (
 
 var a fyne.App
 var w fyne.Window
+var bufferSize int = 10
+var activityChan = make(chan struct{}, bufferSize) // using struct because it is 0 size
+var stopTracker chan struct{}
 
 func EntryPoint() {
 	f, _ := os.Create("log.txt")
@@ -31,7 +35,7 @@ func EntryPoint() {
 	w = a.NewWindow("PasswordManager")
 	w.Resize(fyne.NewSize(500, 500))
 	w.CenterOnScreen()
-	if err := dbControl.OpenDatabase("vault.db"); err != nil {
+	if err := dbControl.OpenDatabase(config.DBName); err != nil {
 		fmt.Println(err) // open or create file
 	}
 
@@ -70,6 +74,13 @@ func EntryPoint() {
 	w.ShowAndRun()
 
 }
+func onUserInteraction() {
+	select {
+	case activityChan <- struct{}{}:
+	default: // Do nothing if channel is full
+		fmt.Println("Buffer is full.")
+	}
+}
 
 // -------------ONE-TIME SETUP------------------
 func firstTimeSetup() {
@@ -78,6 +89,7 @@ func firstTimeSetup() {
 	passwordEntry.SetPlaceHolder("Enter first master password")
 	// Submit button
 	submit := widget.NewButton("Unlock", func() {
+
 		masterPassword := passwordEntry.Text
 		if masterPassword == "" {
 			dialog.ShowInformation("Error", "Master password cannot be empty", w)
@@ -111,6 +123,10 @@ func unlock() {
 	passwordEntry.SetPlaceHolder("Enter master password")
 	// Submit button
 	submit := widget.NewButton("Unlock", func() {
+		onUserInteraction()
+		backUpDB.InitBackupDB(config.BackupDBName) // initialzie the backup db
+		backUpDB.Backup = backUpDB.NewBackUpManager(10)
+
 		masterPassword := passwordEntry.Text
 		if masterPassword == "" {
 			dialog.ShowInformation("Error", "Master password cannot be empty", w)
@@ -151,7 +167,12 @@ func passwordScreen() {
 		widget.NewLabel("Edit"),
 	)
 	rows = append(rows, header)
-
+	// Stop any previous tracker
+	if stopTracker != nil {
+		close(stopTracker)
+	}
+	stopTracker = make(chan struct{})
+	go startInactivityTracker(stopTracker)
 	for _, cred := range creds {
 		passwordLabel := widget.NewLabel("********")
 		showBtn := widget.NewButtonWithIcon("", theme.VisibilityIcon(), nil)
@@ -162,6 +183,7 @@ func passwordScreen() {
 		// Show/hide logic
 		showing := false
 		showBtn.OnTapped = func() {
+			onUserInteraction()
 			if showing {
 				passwordLabel.SetText("********")
 				showBtn.SetIcon(theme.VisibilityIcon())
@@ -177,7 +199,13 @@ func passwordScreen() {
 
 		// Copy logic
 		copyBtn.OnTapped = func() {
-			a.Clipboard().SetContent(string(cred.Cipherpass))
+			onUserInteraction()
+			config.UseMasterKey(func(masterKey []byte) {
+				password, _ := encrypto.Decryption(masterKey, cred.Nonce, cred.Cipherpass)
+				//passwordLabel.SetText(string(password))
+				a.Clipboard().SetContent(string(password))
+			})
+			//a.Clipboard().SetContent(string(cred.Cipherpass))
 			dialog.ShowInformation("Copied", "Password copied to clipboard", w)
 			// Optional: auto-clear clipboard
 			go func() {
@@ -191,6 +219,7 @@ func passwordScreen() {
 
 		// Delete logic
 		deleteBtn.OnTapped = func() {
+			onUserInteraction()
 			dialog.NewConfirm("Delete", "Are you sure?", func(ok bool) {
 				if ok {
 					dbControl.DeleteCred(cred.Platform, cred.Username)
@@ -201,6 +230,7 @@ func passwordScreen() {
 
 		// Edit logic
 		editBtn.OnTapped = func() {
+			onUserInteraction()
 			passwordEntry := widget.NewPasswordEntry()
 			//modal design
 			formItems := []*widget.FormItem{
@@ -247,7 +277,7 @@ func passwordScreen() {
 		platformEntry := widget.NewEntry()
 		usernameEntry := widget.NewEntry()
 		passwordEntry := widget.NewPasswordEntry()
-
+		onUserInteraction()
 		formItems := []*widget.FormItem{
 			{Text: "Platform", Widget: platformEntry},
 			{Text: "Username", Widget: usernameEntry},
@@ -286,18 +316,61 @@ func passwordScreen() {
 }
 
 /*
-func showClipboardWarningModal() {
-	dialog.ShowConfirm("Security Notice",
-		"Clipboard history may still contain your password. Do you want to clear it?",
-		func(confirm bool) {
-			if confirm {
-				go func() {
-					err := exec.Command("cmd", "/c", `echo off | clip`).Run()
-					if err != nil {
-						fmt.Println("Failed to clear clipboard:", err)
-					}
-				}()
-			}
-		}, w)
-}
+	func showClipboardWarningModal() {
+		dialog.ShowConfirm("Security Notice",
+			"Clipboard history may still contain your password. Do you want to clear it?",
+			func(confirm bool) {
+				if confirm {
+					go func() {
+						err := exec.Command("cmd", "/c", `echo off | clip`).Run()
+						if err != nil {
+							fmt.Println("Failed to clear clipboard:", err)
+						}
+					}()
+				}
+			}, w)
+	}
 */
+func startInactivityTracker(stop <-chan struct{}) {
+	go func() {
+		timeInterval := config.Timer * time.Minute
+		timer := time.NewTimer(timeInterval) //config.timer//
+		fmt.Println("Trying to send activity")
+		for {
+			select {
+			case <-activityChan:
+				fmt.Println("Button is clicked")
+				if !timer.Stop() {
+					select {
+					case <-timer.C:
+					default:
+					}
+				}
+
+				timer.Reset(timeInterval)
+			case <-timer.C:
+				fmt.Println("Inactivity timeout reached. Locking app.")
+				backUpDB.Backup.Stop()
+				fyne.Do(func() {
+					a.SendNotification(fyne.NewNotification("Session Expired", "Please log in again."))
+					fyne.CurrentApp().SendNotification(&fyne.Notification{
+						Title:   "Session Expired",
+						Content: "Please log in again.",
+					})
+					config.ClearMasterKey()
+					// Return to unlock screen on main thread
+
+					unlock()
+
+				})
+				stopTracker = nil
+				return
+			case <-stop:
+				timer.Stop()
+				return
+			}
+		}
+
+	}()
+
+}

@@ -3,18 +3,15 @@ package dbControl
 import (
 	"database/sql"
 	"fmt"
+	"passmana/backUpDB"
 	"passmana/config"
 	"passmana/encrypto"
+	"passmana/model"
 
 	_ "modernc.org/sqlite" // driver
 )
 
-type Cred struct {
-	Username   string
-	Platform   string
-	Nonce      []byte
-	Cipherpass []byte
-}
+//var Backup = backUpDB.Backup
 
 var DB *sql.DB
 
@@ -61,15 +58,15 @@ func CloseDatabase() {
 	}
 }
 
-func ListPassword() ([]Cred, error) {
+func ListPassword() ([]model.Cred, error) {
 	rows, err := DB.Query(`SELECT username, platform,nonce,cipherpass FROM creds`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var creds []Cred
+	var creds []model.Cred
 	for rows.Next() {
-		var c Cred
+		var c model.Cred
 
 		if err := rows.Scan(&c.Username, &c.Platform, &c.Nonce, &c.Cipherpass); err != nil {
 			return nil, err
@@ -94,6 +91,18 @@ func AddCred(username, platform string, cipherpass []byte) error {
 
 	_, err = DB.Exec(`INSERT INTO creds(platform, username,nonce,cipherpass) VALUES(?,?,?,?)`,
 		platform, username, nonce, encryptedPass)
+	cred := model.Cred{
+		Username:   username,
+		Platform:   platform,
+		Nonce:      nonce,
+		Cipherpass: encryptedPass,
+	}
+	// Send backup event
+	backUpDB.Backup.Send(backUpDB.BackUpEvent{
+		Action: "add",
+		Data:   cred,
+	})
+
 	return err
 
 }
@@ -120,10 +129,31 @@ func UpdateCred(username, platform, cipherpass string) error {
 	if rowsAffected == 0 {
 		return fmt.Errorf("no matching credential found to update")
 	}
+	cred := model.Cred{
+		Username:   username,
+		Platform:   platform,
+		Nonce:      nonce,
+		Cipherpass: encryptedPass,
+	}
+	backUpDB.Backup.Send(backUpDB.BackUpEvent{
+		Action: "update",
+		Data:   cred,
+	})
+
 	return nil
 }
 
 func DeleteCred(platform, username string) error {
 	_, err := DB.Exec(`DELETE FROM creds WHERE platform=? AND username=?`, platform, username)
+	cred := model.Cred{
+		Username:   username,
+		Platform:   platform,
+		Nonce:      nil,
+		Cipherpass: nil,
+	}
+	backUpDB.Backup.Send(backUpDB.BackUpEvent{
+		Action: "delete",
+		Data:   cred,
+	})
 	return err
 }
