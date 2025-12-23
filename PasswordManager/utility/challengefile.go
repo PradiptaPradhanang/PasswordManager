@@ -9,7 +9,7 @@ import (
 )
 
 // ─── YOUR EXACT SPEC ───
-func CreateVault(master string) {
+func CreateVault(master []byte) {
 
 	// 1. 32-byte random challenge
 	challenge := make([]byte, 32)
@@ -44,7 +44,7 @@ func CreateVault(master string) {
 	// fmt.Println("Ciphertext:", sealed[12:])
 }
 
-func VerifyPass(master string) (check bool) {
+func VerifyPass(master []byte) (check bool) {
 	salt, err := os.ReadFile(config.SaltFile)
 	if err != nil {
 		fmt.Println(err)

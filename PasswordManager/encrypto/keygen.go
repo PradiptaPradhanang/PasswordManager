@@ -10,7 +10,7 @@ import (
 )
 
 type MasterKeyConfig struct {
-	Mpassword string
+	Mpassword []byte
 	Salt      []byte
 }
 

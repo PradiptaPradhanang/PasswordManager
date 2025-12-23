@@ -79,21 +79,35 @@ func ListPassword() ([]Cred, error) {
 	return creds, nil
 }
 func AddCred(username, platform string, cipherpass []byte) error {
+	var (
+		encryptedPass []byte
+		nonce         []byte
+		err           error
+	)
 
-	masterKey := config.GetMasterKey()
-	encryptedPass, nonce, err := encrypto.Encryption(masterKey, cipherpass)
+	config.UseMasterKey(func(masterKey []byte) {
+		encryptedPass, nonce, err = encrypto.Encryption(masterKey, cipherpass)
+	})
 	if err != nil {
 		return err
 	}
+
 	_, err = DB.Exec(`INSERT INTO creds(platform, username,nonce,cipherpass) VALUES(?,?,?,?)`,
 		platform, username, nonce, encryptedPass)
 	return err
+
 }
 
 func UpdateCred(username, platform, cipherpass string) error {
+	var (
+		encryptedPass []byte
+		nonce         []byte
+		err           error
+	)
 	tmpCipherPass := []byte(cipherpass)
-	masterKey := config.GetMasterKey()
-	encryptedPass, nonce, err := encrypto.Encryption(masterKey, tmpCipherPass)
+	config.UseMasterKey(func(masterKey []byte) {
+		encryptedPass, nonce, err = encrypto.Encryption(masterKey, tmpCipherPass)
+	})
 	if err != nil {
 		return err
 	}

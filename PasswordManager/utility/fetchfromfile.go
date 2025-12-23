@@ -55,7 +55,7 @@ func decryptBlock(entry []string, mpassword string) (p []byte, err error) {
 		}
 	}
 	cfg := encrypto.MasterKeyConfig{
-		Mpassword: mpassword,
+		Mpassword: []byte(mpassword),
 		Salt:      salt,
 	}
 	MKey, _, err := encrypto.DeriveMasterKey(cfg)
@@ -69,6 +69,7 @@ func decryptBlock(entry []string, mpassword string) (p []byte, err error) {
 	return password, nil
 
 }
+
 func Fetchfromfile(username string, platform string, mpassword string) {
 
 	data, err := readCSV()

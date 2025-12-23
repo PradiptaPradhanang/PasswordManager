@@ -14,15 +14,15 @@ Secure Storage
 
 Store encrypted entries in a local file (e.g., JSON or BoltDB).
 
-Optionally encrypt the entire file with a master key.
+Optionally encrypt the entire file with a master key.-done 
 
 Clipboard Auto-Clear
 
 Copy passwords to clipboard and auto-clear after a few seconds to reduce exposure.
 
-Password Strength Meter
+Password Strength Meter-not doing
 
-Evaluate password strength using entropy or pattern analysis.
+Evaluate password strength using entropy or pattern analysis.-not doing
 
 Warn users about weak or reused passwords.
 

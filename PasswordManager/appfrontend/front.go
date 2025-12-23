@@ -8,6 +8,7 @@ import (
 	"passmana/encrypto"
 	"passmana/utility"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -55,18 +56,18 @@ func EntryPoint() {
 	} else {
 		unlock()
 	}
-	w.ShowAndRun()
-	w.SetCloseIntercept(func() {
-		masterKey := config.GetMasterKey()
-		// Wipe the master key
-		for i := range masterKey {
-			masterKey[i] = 0
-		}
-		masterKey = nil
 
-		// Then close the window
-		w.Close()
+	w.SetCloseIntercept(func() {
+		dialog.NewConfirm("Exit", "Are you sure you want to quit?", func(ok bool) {
+			if ok {
+				config.ClearMasterKey()
+				fmt.Println("clear the masterkey")
+				// Then close the window
+				w.Close()
+			}
+		}, w).Show()
 	})
+	w.ShowAndRun()
 
 }
 
@@ -87,7 +88,7 @@ func firstTimeSetup() {
 			fmt.Println(err)
 			return
 		}
-		utility.CreateVault(masterPassword)
+		utility.CreateVault([]byte(masterPassword))
 		// TODO: Use masterPassword to derive key and unlock credentials
 		dialog.ShowInformation("Success", "Master password accepted", w)
 		d := dialog.NewInformation("Ready", "Vault created! Restart the app.", w)
@@ -115,7 +116,7 @@ func unlock() {
 			dialog.ShowInformation("Error", "Master password cannot be empty", w)
 			return
 		}
-		if !utility.VerifyPass(masterPassword) {
+		if !utility.VerifyPass([]byte(masterPassword)) {
 			dialog.ShowInformation("Error", "Master password is wrong", w)
 			return
 		}
@@ -165,9 +166,10 @@ func passwordScreen() {
 				passwordLabel.SetText("********")
 				showBtn.SetIcon(theme.VisibilityIcon())
 			} else {
-				masterKey := config.GetMasterKey()
-				password, _ := encrypto.Decryption(masterKey, cred.Nonce, cred.Cipherpass)
-				passwordLabel.SetText(string(password))
+				config.UseMasterKey(func(masterKey []byte) {
+					password, _ := encrypto.Decryption(masterKey, cred.Nonce, cred.Cipherpass)
+					passwordLabel.SetText(string(password))
+				})
 				showBtn.SetIcon(theme.VisibilityOffIcon())
 			}
 			showing = !showing
@@ -177,6 +179,14 @@ func passwordScreen() {
 		copyBtn.OnTapped = func() {
 			a.Clipboard().SetContent(string(cred.Cipherpass))
 			dialog.ShowInformation("Copied", "Password copied to clipboard", w)
+			// Optional: auto-clear clipboard
+			go func() {
+				time.Sleep(15 * time.Second)
+				a.Clipboard().SetContent("")
+				fmt.Println("clipboard cleared")
+				//showClipboardWarningModal()
+			}()
+
 		}
 
 		// Delete logic
@@ -232,7 +242,7 @@ func passwordScreen() {
 	}
 
 	list := container.NewVScroll(container.NewVBox(rows...))
-
+	//scroller
 	addButton := widget.NewButton("➕ Add New Credential", func() {
 		platformEntry := widget.NewEntry()
 		usernameEntry := widget.NewEntry()
@@ -257,7 +267,6 @@ func passwordScreen() {
 					dialog.ShowError(fmt.Errorf("password is less than 8 characters,credentials not added"), w)
 					return
 				}
-
 				err := dbControl.AddCred(username, platform, []byte(password))
 				if err != nil {
 					dialog.ShowError(err, w)
@@ -275,3 +284,20 @@ func passwordScreen() {
 	content := container.NewBorder(nil, addButton, nil, nil, list)
 	w.SetContent(content)
 }
+
+/*
+func showClipboardWarningModal() {
+	dialog.ShowConfirm("Security Notice",
+		"Clipboard history may still contain your password. Do you want to clear it?",
+		func(confirm bool) {
+			if confirm {
+				go func() {
+					err := exec.Command("cmd", "/c", `echo off | clip`).Run()
+					if err != nil {
+						fmt.Println("Failed to clear clipboard:", err)
+					}
+				}()
+			}
+		}, w)
+}
+*/

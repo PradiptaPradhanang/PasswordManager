@@ -13,7 +13,7 @@ func Insert(username string, platform string, password string, masterPassword st
 
 	//converts string into byte array because bcrypt only accept byte array
 	cfg := encrypto.MasterKeyConfig{
-		Mpassword: masterPassword,
+		Mpassword: []byte(masterPassword),
 		Salt:      nil,
 	}
 	mKey, salt, err := encrypto.DeriveMasterKey(cfg)

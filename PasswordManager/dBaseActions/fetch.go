@@ -9,7 +9,7 @@ import (
 
 func decryptBlock(salt []byte, nonce []byte, ciphertext []byte, mpassword string) (p []byte, err error) {
 	cfg := encrypto.MasterKeyConfig{
-		Mpassword: mpassword,
+		Mpassword: []byte(mpassword),
 		Salt:      salt,
 	}
 	MKey, _, err := encrypto.DeriveMasterKey(cfg)
