@@ -67,6 +67,8 @@ func EntryPoint() {
 				config.ClearMasterKey()
 				fmt.Println("clear the masterkey")
 				// Then close the window
+				fmt.Println("CLose all the tracker")
+				close(stopTracker)
 				w.Close()
 			}
 		}, w).Show()
@@ -367,6 +369,7 @@ func startInactivityTracker(stop <-chan struct{}) {
 				stopTracker = nil
 				return
 			case <-stop:
+				backUpDB.Backup.Stop()
 				timer.Stop()
 				return
 			}
