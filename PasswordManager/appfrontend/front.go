@@ -115,6 +115,7 @@ func firstTimeSetup() {
 		passwordEntry,
 		submit,
 	))
+
 }
 
 func unlock() {
